@@ -4,7 +4,7 @@ Aller dans le dossier souhaité
 
 `git clone https://github.com/Axsag/serveur_bot.git`
 
-ou décompresser l'archive,
+OU décompresser l'archive,
 
 Puis :
 
