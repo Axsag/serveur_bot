@@ -15,3 +15,19 @@ Ajouter le token dans `.env.exemple` puis renommer le fichier en `.env`
 Démarrer le bot avec :
 
 `node index.js`
+
+Pour créer une nouvelle commande,
+Créer un fichier `nom_de_la_commande.js` dans le dossier `commands/`
+
+Modèle de commande : 
+
+```js
+module.exports = {
+    name: 'nom_de_la_commande',
+    description: 'description de la commande',
+    admin: false, // true si commande réservée aux admins
+    execute(message, args) {
+        // Code à executer lorsque la commande est faite
+    }
+};
+```
