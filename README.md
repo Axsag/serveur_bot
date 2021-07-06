@@ -1,13 +1,17 @@
 # serveur_bot
 
-Aller dans le dossier souhaitÈ
+Aller dans le dossier souhait√©
 
 `git clone https://github.com/Axsag/serveur_bot.git`
+
+ou d√©compresser l'archive,
+
+Puis :
 
 `npm install`
 
 Ajouter le token dans `.env.exemple` puis renommer le fichier en `.env`
 
-DÈmarrer le bot avec 
+D√©marrer le bot avec 
 
 `node index.js`
