@@ -42,7 +42,6 @@ client.on('message', async message => {
     }
     catch (e) {
         console.log(e);
-        message.channel.send('Y\'a un truc qui foire');
     }
 });
 
