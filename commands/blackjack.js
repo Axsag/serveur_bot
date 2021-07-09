@@ -21,11 +21,13 @@ module.exports = {
     },
     dealer: {
       cards: [],
-      value: 0
+      value: 0,
+      aces: 0
     },
     player: {
       cards: [],
-      value: 0
+      value: 0,
+      aces: 0
     },
     execute(message, args) {
         this.startGame(message);
@@ -83,6 +85,9 @@ module.exports = {
             return ['✅', '🛑'].includes(reaction.emoji.name) && user.id === message.author.id;
         };
 
+        if (this.dealer.value === 0)
+            this.updatePlayerHandVal(this.dealer);
+
         let content = '';
         let p_score = this.player.value;
         let d_score = this.dealer.value;
@@ -116,6 +121,10 @@ module.exports = {
                                 break;
                         }
                     })
+                })
+                .catch(collected => {
+                    sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard');
+                    sent.delete();
                 })
             })
     },
@@ -178,11 +187,16 @@ module.exports = {
             let match = player.cards[card].match(regexp);
             let card_value = this.card_values[match[1]];
 
-            // Manage Aces
-            if (player.value > 10 && card_value === 11){
-                card_value = 1;
+            if (card_value === 1){
+                player.aces += 1;
             }
+
             player.value += card_value;
+
+            if (player.value > 21 && player.aces > 0){
+                player.value -= 10;
+                player.aces -= 1;
+            }
         }
         return true;
     },
@@ -190,11 +204,13 @@ module.exports = {
         this.deck = [];
         this.dealer = {
             cards: [],
-            value: 0
+            value: 0,
+            aces: 0
         };
         this.player = {
             cards: [],
-            value: 0
+            value: 0,
+            aces: 0
         };
     }
 };
