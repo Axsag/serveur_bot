@@ -111,7 +111,8 @@ module.exports = {
                                 this.startGame(message);
                                 break;
                             case '🛑':
-                                sent.edit('Dealer ('+this.dealer.value+') >> '  + this.dealer.cards.join(' + ') + '\nPlayer ('+this.player.value+') >> ' + this.player.cards.join(' + ') + '\nA la prochaine !');
+                                sent.edit('Dealer ('+this.dealer.value+') >> '  + this.dealer.cards.join(' + ') + '\nPlayer ('+this.player.value+') >> ' + this.player.cards.join(' + ') + '\nA la prochaine !')
+                                    .then(() => {this.resetVars()});
                                 break;
                         }
                     })
