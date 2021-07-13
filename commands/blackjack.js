@@ -5,19 +5,19 @@ module.exports = {
     deck: [],
     cardBack: ':question::question:',
     card_values: {
-        'regional_indicator_a': 11,
-        'regional_indicator_k': 10,
-        'regional_indicator_q': 10,
-        'regional_indicator_j': 10,
-        'keycap_ten': 10,
-        'nine': 9,
-        'eight': 8,
-        'seven': 7,
-        'six': 6,
-        'five': 5,
-        'four': 4,
-        'three': 3,
-        'two': 2,
+        'A': 11,
+        'K': 10,
+        'Q': 10,
+        'J': 10,
+        '10': 10,
+        '9': 9,
+        '8': 8,
+        '7': 7,
+        '6': 6,
+        '5': 5,
+        '4': 4,
+        '3': 3,
+        '2': 2,
     },
     dealer: {
       cards: [],
@@ -29,13 +29,24 @@ module.exports = {
       value: 0,
       aces: 0
     },
+    playerArt:
+        '  ___ _\n' +
+        ' | _ \\ |__ _ _  _ ___ _ _ \n' +
+        ' |  _/ / _` | || / -_) \'_|\n' +
+        ' |_| |_\\__,_|\\_, \\___|_|\n' +
+        '             |__/          ',
+    dealerArt:
+        '  ___\n' +
+        ' |   \\ ___ __ _| |___ _ _ \n' +
+        ' | |) / -_) _` | / -_) \'_|\n' +
+        ' |___/\\___\\__,_|_\\___|_|',
     execute(message, args) {
         this.startGame(message);
     },
     // Number of cards
     makeDeck(count = 1){
-        const suits = ['<:clubs_suit:862967280408068096>', '<:diamonds_suit:862967280971677726>', '<:hearts_suit:862967280191012895>', '<:spades_suit:862967280720019476>'];
-        const values = [':regional_indicator_a:', ':two:', ':three:', ':four:', ':five:', ':six:', ':seven:', ':eight:', ':nine:', ':keycap_ten:', ':regional_indicator_j:', ':regional_indicator_q:', ':regional_indicator_k:'];
+        const suits = ['spades', 'hearts', 'diamonds', 'clubs'];
+        const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
         for (let i=0; i<count; ++i) {
             for (let suit in suits) {
@@ -70,10 +81,7 @@ module.exports = {
                 this.dealer.cards.push(this.deal());
             }
             this.updatePlayerHandVal();
-            sent.edit('Dealer >> \nPlayer >> ' + this.player.cards[0])
-                .then(() => {sent.edit('Dealer >> '  + this.dealer.cards[0] + '\nPlayer >> ' + this.player.cards[0])})
-                .then(() => {sent.edit('Dealer >> '  + this.dealer.cards[0] + '\nPlayer >> ' + this.player.cards.join(' + '))})
-                .then(() => {sent.edit('Dealer >> '  + this.dealer.cards[0] + '+' + this.cardBack + '\nPlayer ('+this.player.value+') >> ' + this.player.cards.join(' + '))})
+            sent.edit('```' + this.dealerArt + '\n' + this.drawCards(false, true) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```')
                 .then(() => {
                     this.playerTurn(sent, message);
                 })
@@ -103,7 +111,7 @@ module.exports = {
         else if (d_score === p_score){
             content = 'Egalité !\nVous voulez remettre ça ?'
         }
-        sent.edit('Dealer ('+this.dealer.value+') >> '  + this.dealer.cards.join(' + ') + '\nPlayer ('+this.player.value+') >> ' + this.player.cards.join(' + ') + '\n===\n' + content)
+        sent.edit('```' + this.dealerArt + ' ('+this.dealer.value+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```\n===\n' + content)
             .then(() => {sent.react('✅')
                 .then(() => {sent.react('🛑')})
                 .then(() => {sent.awaitReactions(filter, { max: 1, time: 60000, errors: ['time'] })
@@ -116,7 +124,7 @@ module.exports = {
                                 this.startGame(message);
                                 break;
                             case '🛑':
-                                sent.edit('Dealer ('+this.dealer.value+') >> '  + this.dealer.cards.join(' + ') + '\nPlayer ('+this.player.value+') >> ' + this.player.cards.join(' + ') + '\nA la prochaine !')
+                                sent.edit('```' + this.dealerArt + ' ('+this.dealer.value+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```\nA la prochaine !')
                                     .then(() => {this.resetVars()});
                                 break;
                         }
@@ -143,7 +151,7 @@ module.exports = {
                         case '✅':
                             this.player.cards.push(this.deal());
                             this.updatePlayerHandVal();
-                            sent.edit('Dealer >> '  + this.dealer.cards[0] + '+' + this.cardBack + '\nPlayer ('+this.player.value+') >> ' + this.player.cards.join(' + '));
+                            sent.edit('```' + this.dealerArt + '\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```');
                             if (this.player.value > 21){
                                 this.endGame(sent, message)
                             }
@@ -168,12 +176,12 @@ module.exports = {
     dealerTurn(sent, message){
         if (this.dealer.value < 17){
             if (this.dealer.cards.length === 2) {
-                sent.edit('Dealer ('+this.dealer.value+') >> '  + this.dealer.cards.join(' + ') + '\nPlayer ('+this.player.value+') >> ' + this.player.cards.join(' + '));
+                sent.edit('```' + this.dealerArt + ' ('+this.dealer.value+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```');
             }
             sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
             this.dealer.cards.push(this.deal());
             this.updatePlayerHandVal(this.dealer);
-            sent.edit('Dealer ('+this.dealer.value+') >> '  + this.dealer.cards.join(' + ') + '\nPlayer ('+this.player.value+') >> ' + this.player.cards.join(' + '))
+            sent.edit('```' + this.dealerArt + ' ('+this.dealer.value+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```')
                 .then(() => {this.dealerTurn(sent, message)});
         }
         else {
@@ -183,7 +191,7 @@ module.exports = {
     updatePlayerHandVal(player = this.player){
         player.value = 0;
         for (let card in player.cards){
-            let regexp = new RegExp(":(.+):<:");
+            let regexp = new RegExp("^([AKQJ\\d]{1,2})");
             let match = player.cards[card].match(regexp);
             let card_value = this.card_values[match[1]];
 
@@ -212,5 +220,98 @@ module.exports = {
             value: 0,
             aces: 0
         };
+    },
+    drawVal(val = 0) {
+        let val_str = val.toString();
+        let asciiNb = [
+
+        ]
+    },
+    drawCards(player, hide_second = false) {
+
+        let cards = {};
+
+        if (player){
+            cards = this.player.cards;
+        }
+        else {
+            cards = this.dealer.cards;
+        }
+
+
+        let suits = {
+            'spades': '\u2660',
+            'hearts': '\u2665',
+            'diamonds': '\u2666',
+            'clubs': '\u2663'
+        };
+        let card_tpl = [
+            '┌─────────┐',
+            '│XX.......│',
+            '│.........│',
+            '│.........│',
+            '│....S....│',
+            '│.........│',
+            '│.........│',
+            '│.......XX│',
+            '└─────────┘'
+            ];
+
+        let count_cards = cards.length;
+
+        card_tpl = card_tpl.map(function (x) {
+            let next_card = x;
+            for (let i=0; i<count_cards; ++i){
+                let card = cards[i];
+                let regexp = new RegExp("^([AKQJ\\d]{1,2})(.+)");
+                let match = card.match(regexp);
+                let card_value = match[1].toString();
+                let card_value2 = match[1].toString();
+
+                if (card_value.length === 1){
+                    card_value = card_value + '.';
+                    card_value2 = '.' + card_value2;
+                }
+                let card_suit = suits[match[2]];
+
+                if (i>0)
+                    x = x.concat(' ', next_card);
+
+                x = x.replace('XX.', card_value + '.');
+                x = x.replace('.XX', '.' + card_value2);
+                x = x.replace('S', card_suit);
+            }
+            return x;
+        });
+
+        return card_tpl.join('\n');
     }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
