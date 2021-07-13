@@ -28,19 +28,36 @@ module.exports = {
     player: {
       cards: [],
       value: 0,
+      aces: 0,
+      canSplit: false,
+      split: false,
+      canDouble: false,
+      double: false,
+      canInsurance: false,
+      insurance: false
+    },
+    player_split: {
+      cards: [],
+      value: 0,
       aces: 0
     },
     playerArt:
-        '  ___ _\n' +
-        ' | _ \\ |__ _ _  _ ___ _ _ \n' +
-        ' |  _/ / _` | || / -_) \'_|\n' +
-        ' |_| |_\\__,_|\\_, \\___|_|\n' +
-        '             |__/          ',
+        '+  ___ _\n' +
+        '+ | _ \\ |__ _ _  _ ___ _ _ \n' +
+        '+ |  _/ / _` | || / -_) \'_|\n' +
+        '+ |_| |_\\__,_|\\_, \\___|_|\n' +
+        '+             |__/          ',
+    splitArt:
+        '-  ___      _ _ _   \n' +
+        '- / __|_ __| (_) |_ \n' +
+        '- \\__ \\ \'_ \\ | |  _|\n' +
+        '- |___/ .__/_|_|\\__|\n' +
+        '-     |_|           ',
     dealerArt:
-        '  ___\n' +
-        ' |   \\ ___ __ _| |___ _ _ \n' +
-        ' | |) / -_) _` | / -_) \'_|\n' +
-        ' |___/\\___\\__,_|_\\___|_|',
+        '-  ___\n' +
+        '- |   \\ ___ __ _| |___ _ _ \n' +
+        '- | |) / -_) _` | / -_) \'_|\n' +
+        '- |___/\\___\\__,_|_\\___|_|',
     execute(message, args) {
         this.startGame(message);
     },
@@ -82,10 +99,14 @@ module.exports = {
                 this.dealer.cards.push(this.deal());
             }
             this.updatePlayerHandVal();
-            sent.edit('```' + this.dealerArt + '\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+(this.player.value > 21 ? 'BUSTED' : this.player.value)+')\n' + this.drawCards(true) + '```')
+            sent.edit(this.drawMessage())
                 .then(() => {
-                    if (!this.checkNatural(sent, message))
+                    if (!this.checkNatural(sent, message)){
+                        this.checkDouble();
+                        this.checkSplit();
+                        this.checkInsurance();
                         this.playerTurn(sent, message);
+                    }
                 })
         });
     },
@@ -95,22 +116,36 @@ module.exports = {
             return ['✅', '🛑'].includes(reaction.emoji.name) && user.id === message.author.id;
         };
 
+        this.splitArt = this.splitArt.replace(/\+/g, '-');
+        this.playerArt = this.playerArt.replace(/\+/g, '-');
+
         if (this.dealer.value === 0)
             this.updatePlayerHandVal(this.dealer);
 
         let content = '';
         let p_score = this.player.value;
+        let ps_score = this.player_split.value;
         let d_score = this.dealer.value;
 
         if (p_score > 21 || (d_score <= 21 && p_score < d_score)){
-            content = 'C\'est perdu !\nUne autre partie histoire de se refaire ?'
+            content = 'C\'est perdu !'
         }
         else if (d_score > 21 || (p_score <= 21 && d_score < p_score)){
-            content = 'Bravo, vous avez gagné !\nVous continuez sur votre lancée ?'
+            content = 'Bravo, vous avez gagné !'
         }
         else if (d_score === p_score){
-            content = 'Egalité !\nVous voulez remettre ça ?'
+            content = 'Egalité !'
         }
+        if (this.player.split) {
+            if (ps_score > 21 || (d_score <= 21 && ps_score < d_score)) {
+                content = content + '\nVotre split est perdant !'
+            } else if (d_score > 21 || (ps_score <= 21 && d_score < ps_score)) {
+                content = content + '\nVotre split est gagnant !'
+            } else if (d_score === ps_score) {
+                content = content + '\nVotre split est a égalité !'
+            }
+        }
+        content = content + '\nVous souhaitez rejouer ?';
         sent.edit(this.drawMessage() + '\n===\n' + content)
             .then(() => {sent.react('✅')
                 .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
@@ -137,41 +172,159 @@ module.exports = {
             })
     },
     playerTurn(sent, message){
+        const arrayReactions = ['✅', '🛑'];
+        if (this.player.canSplit)
+            arrayReactions.push('↔');
+        if (this.player.canDouble)
+            arrayReactions.push('⏫');
+        if (this.player.canInsurance)
+            arrayReactions.push('⚠');
+
         const filter = (reaction, user) => {
-            return ['✅', '🛑'].includes(reaction.emoji.name) && user.id === message.author.id;
+            return arrayReactions.includes(reaction.emoji.name) && user.id === message.author.id;
         };
+
+        if (this.player.value === 21){
+            if (this.player.split) {
+                this.splitTurn(sent, message);
+            } else {
+                this.dealerTurn(sent, message);
+            }
+            return;
+        }
 
         sent.react('✅')
             .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
-            .then(() => sent.awaitReactions(filter, { max: 1, time: 60000, errors: ['time'] })
-                .then(collected => {
-                    const reaction = collected.first();
-                    sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
-                    switch (reaction.emoji.name) {
-                        case '✅':
-                            this.player.cards.push(this.deal());
-                            this.updatePlayerHandVal();
-                            sent.edit('```' + this.dealerArt + '\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+(this.player.value > 21 ? 'BUSTED' : this.player.value)+')\n' + this.drawCards(true) + '```').catch(e => {console.log(e)});
-                            if (this.player.value > 21){
-                                this.endGame(sent, message)
-                            }
-                            else if (this.player.value === 21){
-                                this.dealerTurn(sent, message);
-                            }
-                            else {
+            .then(() => { if (this.player.canDouble) sent.react('⏫').catch(e => {console.log(e)})})
+            .then(() => { if (this.player.canInsurance) sent.react('⚠').catch(e => {console.log(e)})})
+            .then(() => { if (this.player.canSplit) sent.react('↔').catch(e => {console.log(e)})})
+            .then(() => {
+                sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
+                    .then(collected => {
+                        const reaction = collected.first();
+                        sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
+                        switch (reaction.emoji.name) {
+                            case '✅':
+                                this.player.canSplit = false;
+                                this.player.canDouble = false;
+                                this.player.canInsurance = false;
+                                this.player.cards.push(this.deal());
+                                this.updatePlayerHandVal();
+                                sent.edit(this.drawMessage()).catch(e => {
+                                    console.log(e)
+                                });
+                                if (this.player.value > 21) {
+                                    if (this.player.split) {
+                                        this.splitTurn(sent, message);
+                                    } else {
+                                        this.endGame(sent, message);
+                                    }
+                                } else if (this.player.value === 21) {
+                                    if (this.player.split) {
+                                        this.splitTurn(sent, message);
+                                    } else {
+                                        this.dealerTurn(sent, message);
+                                    }
+                                } else {
+                                    this.playerTurn(sent, message);
+                                }
+                                break;
+                            case '🛑':
+                                if (this.player.split) {
+                                    this.splitTurn(sent, message);
+                                } else {
+                                    this.dealerTurn(sent, message);
+                                }
+                                break;
+                            case '⏫':
+                                this.player.double = true;
+                                this.player.canDouble = false;
                                 this.playerTurn(sent, message);
-                            }
-                            break;
-                        case '🛑':
-                            this.dealerTurn(sent, message);
-                            break;
-                    }
-                })
-                .catch(collected => {
-                    sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard').catch(e => {console.log(e)});
-                    sent.delete();
-                })
-            )
+                                break;
+                            case '⚠':
+                                this.player.insurance = true;
+                                this.player.canInsurance = false;
+                                this.playerTurn(sent, message);
+                                break;
+                            case '↔':
+                                this.player.split = true;
+                                this.player.canSplit = false;
+                                this.player_split.cards.push(this.player.cards[1]);
+                                this.player.cards.pop();
+                                this.player.cards.push(this.deal());
+                                this.player_split.cards.push(this.deal());
+                                this.updatePlayerHandVal();
+                                this.updatePlayerHandVal(this.player_split);
+                                sent.edit(this.drawMessage()).catch(e => {
+                                    console.log(e)
+                                });
+                                if (this.player.cards[0].startsWith('A')) {
+                                    this.dealerTurn(sent, message);
+                                } else {
+                                    this.playerTurn(sent, message);
+                                }
+                                break;
+                        }
+                    })
+                    .catch(collected => {
+                        sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard').catch(e => {
+                            console.log(e)
+                        });
+                        sent.delete();
+                    })
+            });
+    },
+    splitTurn(sent, message){
+        const arrayReactions = ['✅', '🛑'];
+
+        this.splitArt = this.splitArt.replace(/-/g, '+');
+        this.playerArt = this.playerArt.replace(/\+/g, '-');
+
+        sent.edit(this.drawMessage()).catch(e => {console.log(e)});
+
+        const filter = (reaction, user) => {
+            return arrayReactions.includes(reaction.emoji.name) && user.id === message.author.id;
+        };
+
+        if (this.player_split.value === 21){
+            this.dealerTurn(sent, message);
+            return;
+        }
+
+        sent.react('✅')
+            .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
+            .then(() => {
+                sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
+                    .then(collected => {
+                        const reaction = collected.first();
+                        sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
+                        switch (reaction.emoji.name) {
+                            case '✅':
+                                this.player_split.cards.push(this.deal());
+                                this.updatePlayerHandVal(this.player_split);
+                                sent.edit(this.drawMessage()).catch(e => {
+                                    console.log(e)
+                                });
+                                if (this.player_split.value > 21) {
+                                    this.endGame(sent, message)
+                                } else if (this.player_split.value === 21) {
+                                    this.dealerTurn(sent, message);
+                                } else {
+                                    this.splitTurn(sent, message);
+                                }
+                                break;
+                            case '🛑':
+                                this.dealerTurn(sent, message);
+                                break;
+                        }
+                    })
+                    .catch(collected => {
+                        sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard').catch(e => {
+                            console.log(e)
+                        });
+                        sent.delete();
+                    })
+            });
     },
     checkNatural(sent, message){
         let regexp = new RegExp("^([AKQJ\\d]{1,2})");
@@ -190,13 +343,27 @@ module.exports = {
         return false;
     },
     checkSplit(){
+        let regexp = new RegExp("^([AKQJ\\d]{1,2})");
+        let match1 = this.player.cards[0].match(regexp);
+        let match2 = this.player.cards[1].match(regexp);
 
+        if (match1 === match2)
+        {
+            this.player.canSplit = true;
+        }
+        return this.player.canSplit;
     },
     checkDouble(){
-
+        if (this.player.value >= 9 && this.player.value <= 11){
+            this.player.canDouble = true;
+        }
+        return this.player.canDouble;
     },
     checkInsurance(){
-
+        if (this.dealer.cards[0].startsWith('A')){
+            this.player.canInsurance = true;
+        }
+        return this.player.canInsurance;
     },
     dealerTurn(sent, message){
         if (this.dealer.value < 17){
@@ -249,17 +416,48 @@ module.exports = {
             cards: [],
             value: 0,
             aces: 0,
+            canSplit: false,
+            split: false,
+            canDouble: false,
+            double: false,
+            canInsurance: false,
+            insurance: false
         };
+        this.player_split = {
+            cards: [],
+                value: 0,
+                aces: 0
+        };
+        this.playerArt =
+        '+  ___ _\n' +
+        '+ | _ \\ |__ _ _  _ ___ _ _ \n' +
+        '+ |  _/ / _` | || / -_) \'_|\n' +
+        '+ |_| |_\\__,_|\\_, \\___|_|\n' +
+        '+             |__/          ';
     },
     drawMessage() {
-        return '```' + this.dealerArt + ' ('+(this.dealer.value > 21 ? 'BUSTED' : this.dealer.value)+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+(this.player.value > 21 ? 'BUSTED' : this.player.value)+')\n' + this.drawCards(true) + '```';
+
+        let dealer_block = '```diff\n' + this.dealerArt + ' ('+(this.dealer.hidden ? '??' : (this.dealer.value > 21 ? 'BUSTED' : this.dealer.value))+')\n'
+            + this.drawCards(false) + '```\n';
+
+        let player_block = '```diff\n' + this.playerArt + ' ('+(this.player.value > 21 ? 'BUSTED' : this.player.value)+')\n'
+            + this.drawCards(true) + '```\n';
+
+        let split_block = '```diff\n' + this.splitArt + ' ('+(this.player_split.value > 21 ? 'BUSTED' : this.player_split.value)+')\n'
+            + this.drawCards(true, true) + '```\n';
+
+        return dealer_block + player_block + (this.player.split ? split_block : '');
+
     },
-    drawCards(player) {
+    drawCards(player, split = false) {
 
         let cards = {};
         let hidden = false;
 
-        if (player){
+        if (split){
+            cards = this.player_split.cards;
+        }
+        else if (player){
             cards = this.player.cards;
         }
         else {
