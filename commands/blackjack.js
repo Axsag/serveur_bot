@@ -22,7 +22,8 @@ module.exports = {
     dealer: {
       cards: [],
       value: 0,
-      aces: 0
+      aces: 0,
+      hidden: true
     },
     player: {
       cards: [],
@@ -81,9 +82,10 @@ module.exports = {
                 this.dealer.cards.push(this.deal());
             }
             this.updatePlayerHandVal();
-            sent.edit('```' + this.dealerArt + '\n' + this.drawCards(false, true) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```')
+            sent.edit('```' + this.dealerArt + '\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+(this.player.value > 21 ? 'BUSTED' : this.player.value)+')\n' + this.drawCards(true) + '```')
                 .then(() => {
-                    this.playerTurn(sent, message);
+                    if (!this.checkNatural(sent, message))
+                        this.playerTurn(sent, message);
                 })
         });
     },
@@ -99,8 +101,6 @@ module.exports = {
         let content = '';
         let p_score = this.player.value;
         let d_score = this.dealer.value;
-        let p_size = this.player.cards.length;
-        let d_size = this.dealer.cards.length;
 
         if (p_score > 21 || (d_score <= 21 && p_score < d_score)){
             content = 'C\'est perdu !\nUne autre partie histoire de se refaire ?'
@@ -111,9 +111,9 @@ module.exports = {
         else if (d_score === p_score){
             content = 'Egalité !\nVous voulez remettre ça ?'
         }
-        sent.edit('```' + this.dealerArt + ' ('+this.dealer.value+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```\n===\n' + content)
+        sent.edit(this.drawMessage() + '\n===\n' + content)
             .then(() => {sent.react('✅')
-                .then(() => {sent.react('🛑')})
+                .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
                 .then(() => {sent.awaitReactions(filter, { max: 1, time: 60000, errors: ['time'] })
                     .then(collected => {
                         const reaction = collected.first();
@@ -124,14 +124,14 @@ module.exports = {
                                 this.startGame(message);
                                 break;
                             case '🛑':
-                                sent.edit('```' + this.dealerArt + ' ('+this.dealer.value+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```\nA la prochaine !')
+                                sent.edit(this.drawMessage() + '\nA la prochaine !')
                                     .then(() => {this.resetVars()});
                                 break;
                         }
                     })
                 })
                 .catch(collected => {
-                    sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard');
+                    sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard').catch(e => {console.log(e)});
                     sent.delete();
                 })
             })
@@ -142,7 +142,7 @@ module.exports = {
         };
 
         sent.react('✅')
-            .then(() => {sent.react('🛑')})
+            .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
             .then(() => sent.awaitReactions(filter, { max: 1, time: 60000, errors: ['time'] })
                 .then(collected => {
                     const reaction = collected.first();
@@ -151,7 +151,7 @@ module.exports = {
                         case '✅':
                             this.player.cards.push(this.deal());
                             this.updatePlayerHandVal();
-                            sent.edit('```' + this.dealerArt + '\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```');
+                            sent.edit('```' + this.dealerArt + '\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+(this.player.value > 21 ? 'BUSTED' : this.player.value)+')\n' + this.drawCards(true) + '```').catch(e => {console.log(e)});
                             if (this.player.value > 21){
                                 this.endGame(sent, message)
                             }
@@ -168,20 +168,49 @@ module.exports = {
                     }
                 })
                 .catch(collected => {
-                    sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard');
+                    sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard').catch(e => {console.log(e)});
                     sent.delete();
                 })
             )
     },
+    checkNatural(sent, message){
+        let regexp = new RegExp("^([AKQJ\\d]{1,2})");
+        let match = this.dealer.cards[0].match(regexp);
+        let card_value = this.card_values[match[1]];
+
+        if (card_value >= 10){
+            this.dealer.hidden = false;
+            this.updatePlayerHandVal(this.dealer);
+            sent.edit(this.drawMessage()).catch(e => {console.log(e)});
+            if (this.dealer.value === 21){
+                this.dealerTurn(sent, message);
+                return true;
+            }
+        }
+        return false;
+    },
+    checkSplit(){
+
+    },
+    checkDouble(){
+
+    },
+    checkInsurance(){
+
+    },
     dealerTurn(sent, message){
         if (this.dealer.value < 17){
             if (this.dealer.cards.length === 2) {
-                sent.edit('```' + this.dealerArt + ' ('+this.dealer.value+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```');
+                this.dealer.hidden = false;
+                sent.edit(this.drawMessage()).catch(e => {console.log(e)});
+                if (this.dealer.value === 21){
+                    this.endGame(sent, message);
+                }
             }
             sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
             this.dealer.cards.push(this.deal());
             this.updatePlayerHandVal(this.dealer);
-            sent.edit('```' + this.dealerArt + ' ('+this.dealer.value+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+this.player.value+')\n' + this.drawCards(true) + '```')
+            sent.edit(this.drawMessage())
                 .then(() => {this.dealerTurn(sent, message)});
         }
         else {
@@ -213,29 +242,29 @@ module.exports = {
         this.dealer = {
             cards: [],
             value: 0,
-            aces: 0
+            aces: 0,
+            hidden: true
         };
         this.player = {
             cards: [],
             value: 0,
-            aces: 0
+            aces: 0,
         };
     },
-    drawVal(val = 0) {
-        let val_str = val.toString();
-        let asciiNb = [
-
-        ]
+    drawMessage() {
+        return '```' + this.dealerArt + ' ('+(this.dealer.value > 21 ? 'BUSTED' : this.dealer.value)+')\n' + this.drawCards(false) + '```\n```' + this.playerArt + ' ('+(this.player.value > 21 ? 'BUSTED' : this.player.value)+')\n' + this.drawCards(true) + '```';
     },
-    drawCards(player, hide_second = false) {
+    drawCards(player) {
 
         let cards = {};
+        let hidden = false;
 
         if (player){
             cards = this.player.cards;
         }
         else {
             cards = this.dealer.cards;
+            hidden = this.dealer.hidden;
         }
 
 
@@ -277,9 +306,16 @@ module.exports = {
                 if (i>0)
                     x = x.concat(' ', next_card);
 
-                x = x.replace('XX.', card_value + '.');
-                x = x.replace('.XX', '.' + card_value2);
-                x = x.replace('S', card_suit);
+                if (hidden && i === 1){
+                    x = x.replace('XX', '..');
+                    x = x.replace('S', '.');
+                    x = x.replace(/(\.){9}│$/g, '░░░░░░░░░│')
+                }
+                else {
+                    x = x.replace('XX.', card_value + '.');
+                    x = x.replace('.XX', '.' + card_value2);
+                    x = x.replace('S', card_suit);
+                }
             }
             return x;
         });
@@ -287,31 +323,3 @@ module.exports = {
         return card_tpl.join('\n');
     }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

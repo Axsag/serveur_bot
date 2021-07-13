@@ -24,7 +24,7 @@ client.once('ready', () => {
 client.on('message', async message => {
 
     if (message.author.id === '415118435174055947') {
-        message.react('🤿');
+        message.react('🤿').catch();
     }
 
     const prefixRegex = new RegExp(`^(<@!?${client.user.id}>|${escapeRegex(prefix)})\\s*`);
@@ -45,4 +45,4 @@ client.on('message', async message => {
     }
 });
 
-client.login(process.env.APP_TOKEN);
+client.login(process.env.APP_TOKEN).catch();
