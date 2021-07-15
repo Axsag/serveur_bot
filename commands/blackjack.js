@@ -158,7 +158,7 @@ module.exports = {
         await this.updateBalance(message, earnings);
         content = content + '\nVotre nouveau solde est de ' + this.player.balance + this.symbol;
         content = content + '\nVous souhaitez rejouer ?';
-        sent.edit(this.drawMessage() + '\n===\n' + content)
+        sent.edit(this.drawMessage(message) + '\n===\n' + content)
             .then(() => {sent.react('✅')
                 .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
                 .then(() => {sent.awaitReactions(filter, { max: 1, time: 60000, errors: ['time'] })
@@ -171,7 +171,7 @@ module.exports = {
                                 this.startGame(message);
                                 break;
                             case '🛑':
-                                sent.edit(this.drawMessage() + '\nA la prochaine !')
+                                sent.edit(this.drawMessage(message) + '\nA la prochaine !')
                                     .then(() => {this.resetVars(message)});
                                 break;
                         }
@@ -248,7 +248,7 @@ module.exports = {
                         this.dealer.cards.push(this.deal());
                     }
                     this.updatePlayerHandVal();
-                    sent.edit(this.drawMessage())
+                    sent.edit(this.drawMessage(message))
                         .then(() => {
                             if (!this.checkNatural(sent, message)){
                                 this.checkDouble();
@@ -307,7 +307,7 @@ module.exports = {
                                 this.player.canInsurance = false;
                                 this.player.cards.push(this.deal());
                                 this.updatePlayerHandVal();
-                                sent.edit(this.drawMessage()).catch(e => {
+                                sent.edit(this.drawMessage(message)).catch(e => {
                                     console.log(e)
                                 });
                                 if (this.player.value > 21) {
@@ -352,7 +352,7 @@ module.exports = {
                                 this.player_split.cards.push(this.deal());
                                 this.updatePlayerHandVal();
                                 this.updatePlayerHandVal(this.player_split);
-                                sent.edit(this.drawMessage()).catch(e => {
+                                sent.edit(this.drawMessage(message)).catch(e => {
                                     console.log(e)
                                 });
                                 if (this.player.cards[0].startsWith('A')) {
@@ -377,7 +377,7 @@ module.exports = {
         this.splitArt = this.splitArt.replace(/-/g, '+');
         this.playerArt = this.playerArt.replace(/\+/g, '-');
 
-        sent.edit(this.drawMessage()).catch(e => {console.log(e)});
+        sent.edit(this.drawMessage(message)).catch(e => {console.log(e)});
 
         const filter = (reaction, user) => {
             return arrayReactions.includes(reaction.emoji.name) && user.id === message.author.id;
@@ -399,7 +399,7 @@ module.exports = {
                             case '✅':
                                 this.player_split.cards.push(this.deal());
                                 this.updatePlayerHandVal(this.player_split);
-                                sent.edit(this.drawMessage()).catch(e => {
+                                sent.edit(this.drawMessage(message)).catch(e => {
                                     console.log(e)
                                 });
                                 if (this.player_split.value > 21) {
@@ -431,7 +431,7 @@ module.exports = {
         if (card_value >= 10){
             this.dealer.hidden = false;
             this.updatePlayerHandVal(this.dealer);
-            sent.edit(this.drawMessage()).catch(e => {console.log(e)});
+            sent.edit(this.drawMessage(message)).catch(e => {console.log(e)});
             if (this.dealer.value === 21){
                 this.dealerTurn(sent, message);
                 return true;
@@ -466,7 +466,7 @@ module.exports = {
         if (this.dealer.value < 17){
             if (this.dealer.cards.length === 2) {
                 this.dealer.hidden = false;
-                sent.edit(this.drawMessage()).catch(e => {console.log(e)});
+                sent.edit(this.drawMessage(message)).catch(e => {console.log(e)});
                 if (this.dealer.value === 21){
                     this.endGame(sent, message);
                 }
@@ -474,7 +474,7 @@ module.exports = {
             sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
             this.dealer.cards.push(this.deal());
             this.updatePlayerHandVal(this.dealer);
-            sent.edit(this.drawMessage())
+            sent.edit(this.drawMessage(message))
                 .then(() => {this.dealerTurn(sent, message)});
         }
         else {
@@ -537,7 +537,9 @@ module.exports = {
         '+ |_| |_\\__,_|\\_, \\___|_|\n' +
         '+             |__/          ';
     },
-    drawMessage() {
+    drawMessage(message) {
+
+        let table_name = 'Table de <@' + message.author.id + '>\n';
 
         let dealer_block = '```diff\n' + this.dealerArt + ' ('+(this.dealer.hidden ? '??' : (this.dealer.value > 21 ? 'BUSTED' : this.dealer.value))+')\n'
             + this.drawCards(false) + '```\n';
