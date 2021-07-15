@@ -1,7 +1,7 @@
 module.exports = {
     name: 'claim',
     description: 'claim daily kamas',
-    admin: true,
+    admin: false,
     symbol: '₭',
     dailyReward: 400,
     dailyStreak: 100,
@@ -21,7 +21,7 @@ module.exports = {
             })
             .then(async result => {
                 if (result === null){
-                    await db.create({ user_id: user_id, kamas: this.dailyReward + this.dailyStreak, date_claim: date, streak: 1 }).catch();
+                    await db.create({ user_id: user_id, kamas: this.dailyReward + this.dailyStreak, date_claim: date, streak: 1 }).catch(e => {console.log(e)});
                     message.reply('Vous avez désormais ' + (this.dailyReward + this.dailyStreak) + this.symbol)
                 }
                 else if (date > result.date + 86400){
@@ -36,14 +36,14 @@ module.exports = {
                         {
                             where: { user_id: user_id }
                         }
-                    ).catch();
+                    ).catch(e => {console.log(e)});
 
-                    message.reply('Vous avez désormais ' + u_kamas + this.symbol).catch();
+                    message.reply('Vous avez désormais ' + u_kamas + this.symbol).catch(e => {console.log(e)});
                 }
                 else {
                     let nextSeconds = result.date_claim + 86400 - date;
                     let nextDate = new Date(nextSeconds * 1000).toISOString().substr(11, 8);
-                    message.reply('Vous pourrez réclamer votre prochaine récompense journalière dans : '+nextDate).catch();
+                    message.reply('Vous pourrez réclamer votre prochaine récompense journalière dans : '+nextDate).catch(e => {console.log(e)});
                 }
             })
             .catch(e => {
