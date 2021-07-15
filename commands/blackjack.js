@@ -464,7 +464,7 @@ module.exports = {
         console.log(match1);
         console.log(match2);
 
-        if (match1 === match2)
+        if (match1[1] === match2[1])
         {
             this.player.canSplit = true;
         }
