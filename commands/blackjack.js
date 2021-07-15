@@ -5,7 +5,6 @@ module.exports = {
     db: null,
     symbol: '₭',
     deck: [],
-    cardBack: ':question::question:',
     card_values: {
         'A': 11,
         'K': 10,
@@ -111,7 +110,7 @@ module.exports = {
             this.betTurn(sent, message);
         });
     },
-    endGame(sent, message){
+    async endGame(sent, message){
 
         const filter = (reaction, user) => {
             return ['✅', '🛑'].includes(reaction.emoji.name) && user.id === message.author.id;
@@ -156,7 +155,7 @@ module.exports = {
                 content = content + '\nVotre split est a égalité !'
             }
         }
-        this.updateBalance(message, earnings);
+        await this.updateBalance(message, earnings);
         content = content + '\nVotre nouveau solde est de ' + this.player.balance + this.symbol;
         content = content + '\nVous souhaitez rejouer ?';
         sent.edit(this.drawMessage() + '\n===\n' + content)
@@ -208,7 +207,7 @@ module.exports = {
             return arrayReactions.includes(reaction.emoji.name) && user.id === message.author.id;
         };
         sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
-            .then(collected => {
+            .then(async collected => {
                 const reaction = collected.first();
                 sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
                 switch (reaction.emoji.name) {
@@ -242,7 +241,7 @@ module.exports = {
                 }
                 if (this.player.bet > 0){
 
-                    this.updateBalance(message, 0 - this.player.bet);
+                    await this.updateBalance(message, 0 - this.player.bet);
 
                     for (let i = 0; i < 2; ++i){
                         this.player.cards.push(this.deal());
@@ -502,7 +501,7 @@ module.exports = {
         }
         return true;
     },
-    resetVars(message){
+    async resetVars(message){
         this.deck = [];
         this.dealer = {
             cards: [],
@@ -529,7 +528,7 @@ module.exports = {
                 aces: 0
         };
 
-        this.updateBalance(message);
+        await this.updateBalance(message);
 
         this.playerArt =
         '+  ___ _\n' +
