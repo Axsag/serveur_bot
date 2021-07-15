@@ -134,7 +134,7 @@ module.exports = {
             content = 'C\'est perdu !'
         }
         else if (d_score > 21 || (p_score <= 21 && d_score < p_score)){
-            if (p_len === 2){
+            if (p_len === 2 && ps_score === 21){
                 earnings = this.player.bet * 1.5;
 
             } else {
@@ -150,7 +150,7 @@ module.exports = {
             if (ps_score > 21 || (d_score <= 21 && ps_score < d_score)) {
                 content = content + '\nVotre split est perdant !'
             } else if (d_score > 21 || (ps_score <= 21 && d_score < ps_score)) {
-                if (ps_len === 2){
+                if (ps_len === 2 && ps_score === 21){
                     earnings = earnings + this.player.bet * 1.5;
 
                 } else {
