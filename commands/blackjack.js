@@ -567,7 +567,7 @@ module.exports = {
         let split_block = '```diff\n' + this.splitArt + ' ('+(this.player_split.value > 21 ? 'BUSTED' : this.player_split.value)+')\n'
             + this.drawCards(true, true) + '```\n';
 
-        return dealer_block + player_block + (this.player.split ? split_block : '');
+        return table_name + dealer_block + player_block + (this.player.split ? split_block : '');
 
     },
     drawCards(player, split = false) {
