@@ -12,13 +12,50 @@ client.commands = new Collection();
 
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('js'));
 
+const Sequelize = require('sequelize');
+
+// DB connect
+const sequelize = new Sequelize({
+    dialect: "sqlite",
+    storage: "../database.sqlite"
+});/*
+ * equivalent to: CREATE TABLE kamas_table(
+ * id VARCHAR(255),
+ * kamas INT NOT NULL DEFAULT 0
+ * );
+ */
+const DB = sequelize.define('kamas_table', {
+    user_id: {
+        type: Sequelize.STRING,
+        unique: true,
+        primaryKey: true
+    },
+    kamas: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0,
+        allowNull: false,
+    },
+    date_claim: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0,
+        allowNull: false,
+    },
+    streak: {
+        type: Sequelize.INTEGER,
+        defaultValue: 1,
+        allowNull: false
+    }
+});
+
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
     client.commands.set(command.name, command);
 }
 
 client.once('ready', () => {
+    DB.sync().catch(e => {console.log(e)});
     console.log('Ready!');
+    // DB.drop();
 });
 
 client.on('message', async message => {
@@ -38,7 +75,7 @@ client.on('message', async message => {
 
     try {
         if (client.commands.get(command).admin && !isAdmin) return;
-        client.commands.get(command).execute(message, args);
+        client.commands.get(command).execute(message, args, DB);
     }
     catch (e) {
         console.log(e);

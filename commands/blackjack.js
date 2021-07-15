@@ -2,6 +2,8 @@ module.exports = {
     name: 'blackjack',
     description: 'basic blackjack game',
     admin: false, // true si commande réservée aux admins
+    db: null,
+    symbol: '₭',
     deck: [],
     cardBack: ':question::question:',
     card_values: {
@@ -19,6 +21,15 @@ module.exports = {
         '3': 3,
         '2': 2,
     },
+    tokens: {
+        '50': '⚫',
+        '100': '🔴',
+        '200': '🔵',
+        '500': '🟠',
+        '1000': '🟢',
+        '2000': '🟡',
+        '5000': '🟣',
+    },
     dealer: {
       cards: [],
       value: 0,
@@ -29,6 +40,8 @@ module.exports = {
       cards: [],
       value: 0,
       aces: 0,
+      balance: 0,
+      bet: 200,
       canSplit: false,
       split: false,
       canDouble: false,
@@ -58,7 +71,8 @@ module.exports = {
         '- |   \\ ___ __ _| |___ _ _ \n' +
         '- | |) / -_) _` | / -_) \'_|\n' +
         '- |___/\\___\\__,_|_\\___|_|',
-    execute(message, args) {
+    execute(message, args, db) {
+        this.db = db;
         this.startGame(message);
     },
     // Number of cards
@@ -90,24 +104,11 @@ module.exports = {
         return this.deck.pop();
     },
     startGame(message){
-        this.resetVars();
+        this.resetVars(message);
         this.makeDeck();
         this.shuffle();
-        message.channel.send('Dealing...').then(sent => {
-            for (let i = 0; i < 2; ++i){
-                this.player.cards.push(this.deal());
-                this.dealer.cards.push(this.deal());
-            }
-            this.updatePlayerHandVal();
-            sent.edit(this.drawMessage())
-                .then(() => {
-                    if (!this.checkNatural(sent, message)){
-                        this.checkDouble();
-                        this.checkSplit();
-                        this.checkInsurance();
-                        this.playerTurn(sent, message);
-                    }
-                })
+        message.channel.send('Starting...').then(sent => {
+            this.betTurn(sent, message);
         });
     },
     endGame(sent, message){
@@ -126,14 +127,24 @@ module.exports = {
         let p_score = this.player.value;
         let ps_score = this.player_split.value;
         let d_score = this.dealer.value;
+        let p_len = this.player.cards.length;
+        let ps_len = this.player_split.cards.length;
+        let earnings = 0;
 
         if (p_score > 21 || (d_score <= 21 && p_score < d_score)){
             content = 'C\'est perdu !'
         }
         else if (d_score > 21 || (p_score <= 21 && d_score < p_score)){
+            if (p_len === 2){
+                earnings = this.player.bet * 1.5;
+
+            } else {
+                earnings = this.player.bet * 2;
+            }
             content = 'Bravo, vous avez gagné !'
         }
         else if (d_score === p_score){
+            earnings = this.player.bet;
             content = 'Egalité !'
         }
         if (this.player.split) {
@@ -145,6 +156,8 @@ module.exports = {
                 content = content + '\nVotre split est a égalité !'
             }
         }
+        this.updateBalance(message, earnings);
+        content = content + '\nVotre nouveau solde est de ' + this.player.balance + this.symbol;
         content = content + '\nVous souhaitez rejouer ?';
         sent.edit(this.drawMessage() + '\n===\n' + content)
             .then(() => {sent.react('✅')
@@ -160,7 +173,7 @@ module.exports = {
                                 break;
                             case '🛑':
                                 sent.edit(this.drawMessage() + '\nA la prochaine !')
-                                    .then(() => {this.resetVars()});
+                                    .then(() => {this.resetVars(message)});
                                 break;
                         }
                     })
@@ -169,6 +182,91 @@ module.exports = {
                     sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard').catch(e => {console.log(e)});
                     sent.delete();
                 })
+            })
+    },
+    betTurn(sent, message, split = false){
+        const arrayReactions = ['🛑'];
+        let balance = this.player.balance;
+        let betInfo = 'C\'est le moment de placer votre mise !\nVotre solde est de ' + balance + this.symbol + '\n';
+
+        if (balance < 50){
+            sent.edit('Désolé, vous n\'avez pas assez de kamas pour la mise minimale').catch()
+        }
+
+        for (let i in this.tokens){
+            let val = parseInt(i);
+            if (val < balance){
+                arrayReactions.push(this.tokens[i]);
+                betInfo = betInfo + '\n' + this.tokens[i] + ': ' + i + this.symbol;
+                sent.react(this.tokens[i]).catch();
+            }
+        }
+        sent.react('🛑').catch();
+        betInfo = betInfo + '\n🛑: Quitter';
+        sent.edit('\n```' + betInfo + '```').catch();
+        const filter = (reaction, user) => {
+            return arrayReactions.includes(reaction.emoji.name) && user.id === message.author.id;
+        };
+        sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
+            .then(collected => {
+                const reaction = collected.first();
+                sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
+                switch (reaction.emoji.name) {
+                    case '⚫':
+                        this.player.bet = 50;
+                        break;
+                    case '🔴':
+                        this.player.bet = 100;
+                        break;
+                    case '🔵':
+                        this.player.bet = 200;
+                        break;
+                    case '🟠':
+                        this.player.bet = 500;
+                        break;
+                    case '🟢':
+                        this.player.bet = 1000;
+                        break;
+                    case '🟡':
+                        this.player.bet = 2000;
+                        break;
+                    case '🟣':
+                        this.player.bet = 5000;
+                        break;
+                    case '🛑':
+                        sent.channel.send('A la prochaine !').catch(e => {
+                            console.log(e)
+                        });
+                        sent.delete();
+                        return false;
+                }
+                if (this.player.bet > 0){
+
+                    this.updateBalance(message, 0 - this.player.bet);
+
+                    for (let i = 0; i < 2; ++i){
+                        this.player.cards.push(this.deal());
+                        this.dealer.cards.push(this.deal());
+                    }
+                    this.updatePlayerHandVal();
+                    sent.edit(this.drawMessage())
+                        .then(() => {
+                            if (!this.checkNatural(sent, message)){
+                                this.checkDouble();
+                                this.checkSplit();
+                                this.checkInsurance();
+                                this.playerTurn(sent, message);
+                            }
+                        }).catch()
+                }
+                return false;
+            })
+            .catch(collected => {
+                sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard').catch(e => {
+                    console.log(e)
+                });
+                sent.delete();
+                return false;
             })
     },
     playerTurn(sent, message){
@@ -391,7 +489,7 @@ module.exports = {
             let match = player.cards[card].match(regexp);
             let card_value = this.card_values[match[1]];
 
-            if (card_value === 1){
+            if (card_value === 11){
                 player.aces += 1;
             }
 
@@ -404,7 +502,7 @@ module.exports = {
         }
         return true;
     },
-    resetVars(){
+    resetVars(message){
         this.deck = [];
         this.dealer = {
             cards: [],
@@ -416,6 +514,8 @@ module.exports = {
             cards: [],
             value: 0,
             aces: 0,
+            balance: 0,
+            bet: 200,
             canSplit: false,
             split: false,
             canDouble: false,
@@ -428,6 +528,9 @@ module.exports = {
                 value: 0,
                 aces: 0
         };
+
+        this.updateBalance(message);
+
         this.playerArt =
         '+  ___ _\n' +
         '+ | _ \\ |__ _ _  _ ___ _ _ \n' +
@@ -519,5 +622,31 @@ module.exports = {
         });
 
         return card_tpl.join('\n');
+    },
+    async updateBalance(message, diff = 0) {
+
+        const user_id = message.author.id;
+
+        await this.db.findOne({ where: { user_id: user_id }, raw: true, nest: true })
+            .then(async result => {
+                if (result === null){
+                    return message.reply('Vous n\'avez pas encore de Kamas, essayez de `!claim` votre récompense quotidienne');
+                }
+                else {
+                    let u_kamas = result.kamas + diff;
+
+                    await this.db.update({ kamas: u_kamas },{ where: { user_id: user_id }}).then(() => {
+                        this.player.balance = u_kamas;
+                        return this.player.balance;
+                    }).catch(e => {
+                        console.log(e);
+                        return message.reply('J\'ai un petit soucis avec la BDD...')
+                    });
+                }
+            })
+            .catch(e => {
+                console.log(e);
+                return message.reply('J\'ai un petit soucis avec la BDD...')
+            });
     }
 };

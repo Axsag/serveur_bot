@@ -1,1 +1,30 @@
 Assign a player to a message with reaction
+
+50
+100
+200
+500
+1000
+2000
+5000
+
+
+​🔴​red
+🟠orange
+​🟡yellow
+​🟢green​
+🔵blue​
+🟣purple
+​⚫black
+​⚪white
+🟤brown​
+
+tokens: {
+    50: ​⚫, //black
+    100: ​🔴​, //red
+    200: 🔵, //blue​
+    500: 🟠, //orange
+    1000: ​🟢, //green​
+    2000: ​🟡, //yellow
+    5000: 🟣, //purple
+}
