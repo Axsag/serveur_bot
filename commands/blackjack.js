@@ -475,7 +475,7 @@ module.exports = {
         }
         return this.player.canDouble;
     },
-    checkInsurance(sent, message){
+    async checkInsurance(sent, message){
         if (this.dealer.cards[0].startsWith('A')){
             const filter = (reaction, user) => {
                 return ['⚠', '🛑'].includes(reaction.emoji.name) && user.id === message.author.id;
