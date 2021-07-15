@@ -15,10 +15,21 @@ const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('
 const Sequelize = require('sequelize');
 
 // DB connect
-const sequelize = new Sequelize({
-    dialect: "sqlite",
-    storage: "../database.sqlite"
-});/*
+const sequelize = new Sequelize(
+    process.env.DB_NAME,
+    process.env.DB_USR,
+    process.env.DB_PWD,
+    {
+        port: process.env.DB_PORT,
+        host: process.env.DB_HOST,
+        logging: console.log,
+        dialect: 'mysql',
+        define: {
+            timestamps: false
+        }
+    }
+);
+/*
  * equivalent to: CREATE TABLE kamas_table(
  * id VARCHAR(255),
  * kamas INT NOT NULL DEFAULT 0
