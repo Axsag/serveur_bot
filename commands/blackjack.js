@@ -349,7 +349,6 @@ module.exports = {
                                         this.player.cards.push(this.deal());
                                         this.updatePlayerHandVal();
                                         this.dealerTurn(sent, message)
-                                        break;
                                     }).catch();
                                 break;
                             case '⚠':
