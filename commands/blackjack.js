@@ -194,7 +194,7 @@ module.exports = {
 
         for (let i in this.tokens){
             let val = parseInt(i);
-            if (val < balance){
+            if (val <= balance){
                 arrayReactions.push(this.tokens[i]);
                 betInfo = betInfo + '\n' + this.tokens[i] + ': ' + i + this.symbol;
                 sent.react(this.tokens[i]).catch();
