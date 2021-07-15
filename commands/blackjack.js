@@ -103,7 +103,7 @@ module.exports = {
         return this.deck.pop();
     },
     startGame(message){
-        this.resetVars(message);
+        this.resetVars(message).catch();
         this.makeDeck();
         this.shuffle();
         message.channel.send('Starting...').then(sent => {
@@ -150,8 +150,15 @@ module.exports = {
             if (ps_score > 21 || (d_score <= 21 && ps_score < d_score)) {
                 content = content + '\nVotre split est perdant !'
             } else if (d_score > 21 || (ps_score <= 21 && d_score < ps_score)) {
+                if (ps_len === 2){
+                    earnings = earnings + this.player.bet * 1.5;
+
+                } else {
+                    earnings = earnings + this.player.bet * 2;
+                }
                 content = content + '\nVotre split est gagnant !'
             } else if (d_score === ps_score) {
+                earnings = earnings + this.player.bet;
                 content = content + '\nVotre split est a égalité !'
             }
         }
@@ -314,7 +321,7 @@ module.exports = {
                                     if (this.player.split) {
                                         this.splitTurn(sent, message);
                                     } else {
-                                        this.endGame(sent, message);
+                                        this.endGame(sent, message).catch();
                                     }
                                 } else if (this.player.value === 21) {
                                     if (this.player.split) {
@@ -336,7 +343,14 @@ module.exports = {
                             case '⏫':
                                 this.player.double = true;
                                 this.player.canDouble = false;
-                                this.playerTurn(sent, message);
+                                this.updateBalance(message, 0 - this.player.bet)
+                                    .then(() => {
+                                        this.player.bet = this.player.bet * 2;
+                                        this.player.cards.push(this.deal());
+                                        this.updatePlayerHandVal();
+                                        this.dealerTurn(sent, message)
+                                        break;
+                                    }).catch();
                                 break;
                             case '⚠':
                                 this.player.insurance = true;
@@ -352,14 +366,19 @@ module.exports = {
                                 this.player_split.cards.push(this.deal());
                                 this.updatePlayerHandVal();
                                 this.updatePlayerHandVal(this.player_split);
-                                sent.edit(this.drawMessage(message)).catch(e => {
-                                    console.log(e)
-                                });
-                                if (this.player.cards[0].startsWith('A')) {
-                                    this.dealerTurn(sent, message);
-                                } else {
-                                    this.playerTurn(sent, message);
-                                }
+                                this.updateBalance(message, 0 - this.player.bet)
+                                    .then(() => {
+                                        sent.edit(this.drawMessage(message)).catch(e => {
+                                            console.log(e)
+                                        });
+                                        if (this.player.cards[0].startsWith('A')) {
+                                            this.dealerTurn(sent, message);
+                                        } else {
+                                            this.playerTurn(sent, message);
+                                        }
+                                        break;
+                                    })
+                                    .catch()
                                 break;
                         }
                     })
@@ -403,7 +422,7 @@ module.exports = {
                                     console.log(e)
                                 });
                                 if (this.player_split.value > 21) {
-                                    this.endGame(sent, message)
+                                    this.endGame(sent, message).catch();
                                 } else if (this.player_split.value === 21) {
                                     this.dealerTurn(sent, message);
                                 } else {
@@ -468,7 +487,7 @@ module.exports = {
                 this.dealer.hidden = false;
                 sent.edit(this.drawMessage(message)).catch(e => {console.log(e)});
                 if (this.dealer.value === 21){
-                    this.endGame(sent, message);
+                    this.endGame(sent, message).catch();
                 }
             }
             sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
@@ -478,7 +497,7 @@ module.exports = {
                 .then(() => {this.dealerTurn(sent, message)});
         }
         else {
-            this.endGame(sent, message);
+            this.endGame(sent, message).catch();
         }
     },
     updatePlayerHandVal(player = this.player){
