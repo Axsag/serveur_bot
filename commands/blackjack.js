@@ -260,16 +260,8 @@ module.exports = {
                     }
                     this.updatePlayerHandVal();
                     sent.edit(this.drawMessage(message))
-                        .then(async () => {
-                            await this.checkInsurance(sent, message)
-                                .then(() => {
-                                    if (!this.checkNatural(sent, message)){
-                                        this.checkDouble();
-                                        this.checkSplit();
-                                        this.playerTurn(sent, message);
-                                    }
-                                })
-                                .catch()
+                        .then(() => {
+                            this.checkInsurance(sent, message)
                         }).catch()
                 }
                 return false;
@@ -483,7 +475,7 @@ module.exports = {
             this.player.canInsurance = true;
             sent.react('⚠')
                 .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
-                .then(() => {
+                .then(async () => {
                     sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
                         .then(async collected => {
                             const reaction = collected.first();
@@ -499,10 +491,17 @@ module.exports = {
                                     }
                                     break;
                                 case '🛑':
-                                    return true;
                             }
                         })
                 })
+                .then(() => {
+                    if (!this.checkNatural(sent, message)){
+                        this.checkDouble();
+                        this.checkSplit();
+                        this.playerTurn(sent, message);
+                    }
+                })
+                .catch()
         }
         return this.player.canInsurance;
     },
