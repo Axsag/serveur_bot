@@ -2,7 +2,7 @@ module.exports = {
     name: 'balance',
     description: 'check your balance',
     admin: false,
-    symbol: '?',
+    symbol: '₭',
     async execute(message, args, db) {
 
         const user_id = message.author.id;
