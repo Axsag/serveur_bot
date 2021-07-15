@@ -375,7 +375,6 @@ module.exports = {
                                         } else {
                                             this.playerTurn(sent, message);
                                         }
-                                        break;
                                     })
                                     .catch()
                                 break;
