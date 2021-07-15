@@ -134,7 +134,7 @@ module.exports = {
             content = 'C\'est perdu !'
         }
         else if (d_score > 21 || (p_score <= 21 && d_score < p_score)){
-            if (p_len === 2 && ps_score === 21){
+            if (p_len === 2 && p_score === 21){
                 earnings = this.player.bet * 1.5;
 
             } else {
