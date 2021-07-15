@@ -46,7 +46,7 @@ module.exports = {
       canDouble: false,
       double: false,
       canInsurance: false,
-      insurance: false
+      insuranceWin: false
     },
     player_split: {
       cards: [],
@@ -162,6 +162,10 @@ module.exports = {
                 content = content + '\nVotre split est a égalité !'
             }
         }
+        if (this.player.insuranceWin){
+            earnings = earnings + this.player.bet;
+            content = content + '\nVous avez gagné votre assurance'
+        }
         await this.updateBalance(message, earnings);
         content = content + '\nVotre nouveau solde est de ' + this.player.balance + this.symbol;
         content = content + '\nVous souhaitez rejouer ?';
@@ -256,13 +260,16 @@ module.exports = {
                     }
                     this.updatePlayerHandVal();
                     sent.edit(this.drawMessage(message))
-                        .then(() => {
-                            if (!this.checkNatural(sent, message)){
-                                this.checkDouble();
-                                this.checkSplit();
-                                this.checkInsurance();
-                                this.playerTurn(sent, message);
-                            }
+                        .then(async () => {
+                            await this.checkInsurance(sent, message)
+                                .then(() => {
+                                    if (!this.checkNatural(sent, message)){
+                                        this.checkDouble();
+                                        this.checkSplit();
+                                        this.playerTurn(sent, message);
+                                    }
+                                })
+                                .catch()
                         }).catch()
                 }
                 return false;
@@ -281,8 +288,6 @@ module.exports = {
             arrayReactions.push('↔');
         if (this.player.canDouble)
             arrayReactions.push('⏫');
-        if (this.player.canInsurance)
-            arrayReactions.push('⚠');
 
         const filter = (reaction, user) => {
             return arrayReactions.includes(reaction.emoji.name) && user.id === message.author.id;
@@ -300,7 +305,6 @@ module.exports = {
         sent.react('✅')
             .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
             .then(() => { if (this.player.canDouble) sent.react('⏫').catch(e => {console.log(e)})})
-            .then(() => { if (this.player.canInsurance) sent.react('⚠').catch(e => {console.log(e)})})
             .then(() => { if (this.player.canSplit) sent.react('↔').catch(e => {console.log(e)})})
             .then(() => {
                 sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
@@ -350,11 +354,6 @@ module.exports = {
                                         this.updatePlayerHandVal();
                                         this.dealerTurn(sent, message)
                                     }).catch();
-                                break;
-                            case '⚠':
-                                this.player.insurance = true;
-                                this.player.canInsurance = false;
-                                this.playerTurn(sent, message);
                                 break;
                             case '↔':
                                 this.player.split = true;
@@ -476,9 +475,34 @@ module.exports = {
         }
         return this.player.canDouble;
     },
-    checkInsurance(){
+    checkInsurance(sent, message){
         if (this.dealer.cards[0].startsWith('A')){
+            const filter = (reaction, user) => {
+                return ['⚠', '🛑'].includes(reaction.emoji.name) && user.id === message.author.id;
+            };
             this.player.canInsurance = true;
+            sent.react('⚠')
+                .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
+                .then(() => {
+                    sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
+                        .then(async collected => {
+                            const reaction = collected.first();
+                            sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
+                            switch (reaction.emoji.name) {
+                                case '⚠':
+                                    let regexp = new RegExp("^([AKQJ\\d]{1,2})");
+                                    let match = this.dealer.cards[1].match(regexp);
+                                    let card_value = this.card_values[match[1]];
+                                    if (card_value === 10){
+                                        this.insuranceWin = true;
+                                        await this.updateBalance(message, 0 - (this.player.bet * .5))
+                                    }
+                                    break;
+                                case '🛑':
+                                    return true;
+                            }
+                        })
+                })
         }
         return this.player.canInsurance;
     },
@@ -540,7 +564,7 @@ module.exports = {
             canDouble: false,
             double: false,
             canInsurance: false,
-            insurance: false
+            insuranceWin: false
         };
         this.player_split = {
             cards: [],
@@ -656,13 +680,14 @@ module.exports = {
                 else {
                     let u_kamas = result.kamas + diff;
 
-                    await this.db.update({ kamas: u_kamas },{ where: { user_id: user_id }}).then(() => {
+                    await this.db.update({ kamas: u_kamas },{ where: { user_id: user_id }})
+                        .then(() => {
                         this.player.balance = u_kamas;
                         return this.player.balance;
-                    }).catch(e => {
-                        console.log(e);
-                        return message.reply('J\'ai un petit soucis avec la BDD...')
-                    });
+                        }).catch(e => {
+                            console.log(e);
+                            return message.reply('J\'ai un petit soucis avec la BDD...')
+                        });
                 }
             })
             .catch(e => {
