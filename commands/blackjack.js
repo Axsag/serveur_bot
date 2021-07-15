@@ -461,6 +461,9 @@ module.exports = {
         let match1 = this.player.cards[0].match(regexp);
         let match2 = this.player.cards[1].match(regexp);
 
+        console.log(match1);
+        console.log(match2);
+
         if (match1 === match2)
         {
             this.player.canSplit = true;
