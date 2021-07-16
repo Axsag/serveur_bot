@@ -275,11 +275,18 @@ module.exports = {
             })
     },
     playerTurn(sent, message){
+        let extra_info = '';
         const arrayReactions = ['✅', '🛑'];
-        if (this.player.canSplit)
+        if (this.player.canSplit) {
             arrayReactions.push('↔');
-        if (this.player.canDouble)
+            extra_info = '\n↔: Split pairs';
+        }
+        if (this.player.canDouble) {
             arrayReactions.push('⏫');
+            extra_info = extra_info + '⏫: Double down';
+        }
+
+        let block_info = '```✅: Hit\n🛑: Stand'+ extra_info +'```';
 
         const filter = (reaction, user) => {
             return arrayReactions.includes(reaction.emoji.name) && user.id === message.author.id;
@@ -294,90 +301,93 @@ module.exports = {
             return;
         }
 
-        sent.react('✅')
-            .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
-            .then(() => { if (this.player.canDouble) sent.react('⏫').catch(e => {console.log(e)})})
-            .then(() => { if (this.player.canSplit) sent.react('↔').catch(e => {console.log(e)})})
+        sent.edit(this.drawMessage(message) + block_info)
             .then(() => {
-                sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
-                    .then(collected => {
-                        const reaction = collected.first();
-                        sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
-                        switch (reaction.emoji.name) {
-                            case '✅':
-                                this.player.canSplit = false;
-                                this.player.canDouble = false;
-                                this.player.canInsurance = false;
-                                this.player.cards.push(this.deal());
-                                this.updatePlayerHandVal();
-                                sent.edit(this.drawMessage(message)).catch(e => {
-                                    console.log(e)
-                                });
-                                if (this.player.value > 21) {
-                                    if (this.player.split) {
-                                        this.splitTurn(sent, message);
-                                    } else {
-                                        this.endGame(sent, message).catch();
-                                    }
-                                } else if (this.player.value === 21) {
-                                    if (this.player.split) {
-                                        this.splitTurn(sent, message);
-                                    } else {
-                                        this.dealerTurn(sent, message);
-                                    }
-                                } else {
-                                    this.playerTurn(sent, message);
-                                }
-                                break;
-                            case '🛑':
-                                if (this.player.split) {
-                                    this.splitTurn(sent, message);
-                                } else {
-                                    this.dealerTurn(sent, message);
-                                }
-                                break;
-                            case '⏫':
-                                this.player.double = true;
-                                this.player.canDouble = false;
-                                this.updateBalance(message, 0 - this.player.bet)
-                                    .then(() => {
-                                        this.player.bet = this.player.bet * 2;
+                sent.react('✅')
+                    .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
+                    .then(() => { if (this.player.canDouble) sent.react('⏫').catch(e => {console.log(e)})})
+                    .then(() => { if (this.player.canSplit) sent.react('↔').catch(e => {console.log(e)})})
+                    .then(() => {
+                        sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
+                            .then(collected => {
+                                const reaction = collected.first();
+                                sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
+                                switch (reaction.emoji.name) {
+                                    case '✅':
+                                        this.player.canSplit = false;
+                                        this.player.canDouble = false;
+                                        this.player.canInsurance = false;
                                         this.player.cards.push(this.deal());
                                         this.updatePlayerHandVal();
-                                        this.dealerTurn(sent, message)
-                                    }).catch();
-                                break;
-                            case '↔':
-                                this.player.split = true;
-                                this.player.canSplit = false;
-                                this.player_split.cards.push(this.player.cards[1]);
-                                this.player.cards.pop();
-                                this.player.cards.push(this.deal());
-                                this.player_split.cards.push(this.deal());
-                                this.updatePlayerHandVal();
-                                this.updatePlayerHandVal(this.player_split);
-                                this.updateBalance(message, 0 - this.player.bet)
-                                    .then(() => {
                                         sent.edit(this.drawMessage(message)).catch(e => {
                                             console.log(e)
                                         });
-                                        if (this.player.cards[0].startsWith('A')) {
-                                            this.dealerTurn(sent, message);
+                                        if (this.player.value > 21) {
+                                            if (this.player.split) {
+                                                this.splitTurn(sent, message);
+                                            } else {
+                                                this.endGame(sent, message).catch();
+                                            }
+                                        } else if (this.player.value === 21) {
+                                            if (this.player.split) {
+                                                this.splitTurn(sent, message);
+                                            } else {
+                                                this.dealerTurn(sent, message);
+                                            }
                                         } else {
                                             this.playerTurn(sent, message);
                                         }
-                                    })
-                                    .catch();
-                                break;
-                        }
-                    })
-                    .catch(collected => {
-                        sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard').catch(e => {
-                            console.log(e)
-                        });
-                        sent.delete();
-                    })
-            });
+                                        break;
+                                    case '🛑':
+                                        if (this.player.split) {
+                                            this.splitTurn(sent, message);
+                                        } else {
+                                            this.dealerTurn(sent, message);
+                                        }
+                                        break;
+                                    case '⏫':
+                                        this.player.double = true;
+                                        this.player.canDouble = false;
+                                        this.updateBalance(message, 0 - this.player.bet)
+                                            .then(() => {
+                                                this.player.bet = this.player.bet * 2;
+                                                this.player.cards.push(this.deal());
+                                                this.updatePlayerHandVal();
+                                                this.dealerTurn(sent, message)
+                                            }).catch();
+                                        break;
+                                    case '↔':
+                                        this.player.split = true;
+                                        this.player.canSplit = false;
+                                        this.player_split.cards.push(this.player.cards[1]);
+                                        this.player.cards.pop();
+                                        this.player.cards.push(this.deal());
+                                        this.player_split.cards.push(this.deal());
+                                        this.updatePlayerHandVal();
+                                        this.updatePlayerHandVal(this.player_split);
+                                        this.updateBalance(message, 0 - this.player.bet)
+                                            .then(() => {
+                                                sent.edit(this.drawMessage(message)).catch(e => {
+                                                    console.log(e)
+                                                });
+                                                if (this.player.cards[0].startsWith('A')) {
+                                                    this.dealerTurn(sent, message);
+                                                } else {
+                                                    this.playerTurn(sent, message);
+                                                }
+                                            })
+                                            .catch();
+                                        break;
+                                }
+                            })
+                            .catch(collected => {
+                                sent.channel.send('Bon j\'ai pas que ça a faire, rappelle moi plus tard').catch(e => {
+                                    console.log(e)
+                                });
+                                sent.delete();
+                            })
+                    }).catch();
+        }).catch();
     },
     splitTurn(sent, message){
         const arrayReactions = ['✅', '🛑'];
@@ -385,7 +395,9 @@ module.exports = {
         this.splitArt = this.splitArt.replace(/-/g, '+');
         this.playerArt = this.playerArt.replace(/\+/g, '-');
 
-        sent.edit(this.drawMessage(message)).catch(e => {console.log(e)});
+        let block_info = '```✅: Hit\n🛑: Stand```';
+
+        sent.edit(this.drawMessage(message) + block_info).catch(e => {console.log(e)});
 
         const filter = (reaction, user) => {
             return arrayReactions.includes(reaction.emoji.name) && user.id === message.author.id;
@@ -476,36 +488,41 @@ module.exports = {
             const filter = (reaction, user) => {
                 return ['⚠', '🛑'].includes(reaction.emoji.name) && user.id === message.author.id;
             };
+            let block_info = '```⚠: Assurance ('+ (this.player.bet * .5) +')\n🛑: Continuer```';
             this.player.canInsurance = true;
-            sent.react('⚠')
-                .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
-                .then(async () => {
-                    sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
-                        .then(async collected => {
-                            const reaction = collected.first();
-                            sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
-                            switch (reaction.emoji.name) {
-                                case '⚠':
-                                    let regexp = new RegExp("^([AKQJ\\d]{1,2})");
-                                    let match = this.dealer.cards[1].match(regexp);
-                                    let card_value = this.card_values[match[1]];
-                                    if (card_value === 10){
-                                        this.insuranceWin = true;
-                                        await this.updateBalance(message, 0 - (this.player.bet * .5))
+            sent.edit(this.drawMessage(message) + block_info)
+                .then(() => {
+                    sent.react('⚠')
+                        .then(() => {sent.react('🛑').catch(e => {console.log(e)})})
+                        .then(async () => {
+                            sent.awaitReactions(filter, {max: 1, time: 60000, errors: ['time']})
+                                .then(async collected => {
+                                    const reaction = collected.first();
+                                    sent.reactions.removeAll().catch(error => console.error('Erreur lors du retrait des reactions: ', error));
+                                    switch (reaction.emoji.name) {
+                                        case '⚠':
+                                            let regexp = new RegExp("^([AKQJ\\d]{1,2})");
+                                            let match = this.dealer.cards[1].match(regexp);
+                                            let card_value = this.card_values[match[1]];
+                                            if (card_value === 10){
+                                                this.player.insuranceWin = true;
+                                                await this.updateBalance(message, 0 - (this.player.bet * .5))
+                                            }
+                                            break;
+                                        case '🛑':
                                     }
-                                    break;
-                                case '🛑':
+                                })
+                        })
+                        .then(() => {
+                            if (!this.checkNatural(sent, message)){
+                                this.checkDouble();
+                                this.checkSplit();
+                                this.playerTurn(sent, message);
                             }
                         })
+                        .catch()
                 })
-                .then(() => {
-                    if (!this.checkNatural(sent, message)){
-                        this.checkDouble();
-                        this.checkSplit();
-                        this.playerTurn(sent, message);
-                    }
-                })
-                .catch()
+                .catch(e => {console.log(e)});
         }
         else {
             if (!this.checkNatural(sent, message)){
@@ -593,16 +610,16 @@ module.exports = {
     },
     drawMessage(message) {
 
-        let table_name = 'Table de <@' + message.author.id + '>\n';
+        let table_name = 'Table de <@' + message.author.id + '>';
 
         let dealer_block = '```diff\n' + this.dealerArt + ' ('+(this.dealer.hidden ? '??' : (this.dealer.value > 21 ? 'BUSTED' : this.dealer.value))+')\n'
-            + this.drawCards(false) + '```\n';
+            + this.drawCards(false) + '```';
 
         let player_block = '```diff\n' + this.playerArt + ' ('+(this.player.value > 21 ? 'BUSTED' : this.player.value)+')\n'
-            + this.drawCards(true) + '```\n';
+            + this.drawCards(true) + '```';
 
         let split_block = '```diff\n' + this.splitArt + ' ('+(this.player_split.value > 21 ? 'BUSTED' : this.player_split.value)+')\n'
-            + this.drawCards(true, true) + '```\n';
+            + this.drawCards(true, true) + '```';
 
         return table_name + dealer_block + player_block + (this.player.split ? split_block : '');
 
