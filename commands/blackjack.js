@@ -432,6 +432,7 @@ module.exports = {
             });
     },
     checkNatural(sent, message){
+        console.log('Checking natural');
         let regexp = new RegExp("^([AKQJ\\d]{1,2})");
         let match = this.dealer.cards[0].match(regexp);
         let card_value = this.card_values[match[1]];
@@ -448,6 +449,7 @@ module.exports = {
         return false;
     },
     checkSplit(){
+        console.log('Checking split');
         let regexp = new RegExp("^([AKQJ\\d]{1,2})");
         let match1 = this.player.cards[0].match(regexp);
         let match2 = this.player.cards[1].match(regexp);
@@ -462,12 +464,14 @@ module.exports = {
         return this.player.canSplit;
     },
     checkDouble(){
+        console.log('Checking double');
         if (this.player.value >= 9 && this.player.value <= 11){
             this.player.canDouble = true;
         }
         return this.player.canDouble;
     },
     async checkInsurance(sent, message){
+        console.log('Checking insurance');
         if (this.dealer.cards[0].startsWith('A')){
             const filter = (reaction, user) => {
                 return ['⚠', '🛑'].includes(reaction.emoji.name) && user.id === message.author.id;
@@ -502,6 +506,13 @@ module.exports = {
                     }
                 })
                 .catch()
+        }
+        else {
+            if (!this.checkNatural(sent, message)){
+                this.checkDouble();
+                this.checkSplit();
+                this.playerTurn(sent, message);
+            }
         }
         return this.player.canInsurance;
     },
