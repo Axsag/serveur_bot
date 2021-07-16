@@ -48,7 +48,7 @@ module.exports = {
             })
             .catch(e => {
             console.log(e);
-            return message.reply('J\'ai un petit soucis avec la BDD...')
+            return message.reply('Elle rame du cul cette BDD, on peut pas faire une requête...')
         });
     }
 };
