@@ -367,7 +367,7 @@ module.exports = {
                                             this.playerTurn(sent, message);
                                         }
                                     })
-                                    .catch()
+                                    .catch();
                                 break;
                         }
                     })
@@ -672,14 +672,14 @@ module.exports = {
         const user_id = message.author.id;
 
         await this.db.findOne({ where: { user_id: user_id }, raw: true, nest: true })
-            .then(async result => {
+            .then(result => {
                 if (result === null){
-                    return message.reply('Vous n\'avez pas encore de Kamas, essayez de `!claim` votre récompense quotidienne');
+                    return message.reply('Vous n\'avez pas encore de '+ this.symbol +', essayez de `!claim` votre récompense quotidienne');
                 }
                 else {
                     let u_kamas = result.kamas + diff;
 
-                    await this.db.update({ kamas: u_kamas },{ where: { user_id: user_id }})
+                    this.db.update({ kamas: u_kamas },{ where: { user_id: user_id }})
                         .then(() => {
                         this.player.balance = u_kamas;
                         return this.player.balance;
