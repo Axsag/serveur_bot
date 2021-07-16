@@ -512,15 +512,15 @@ module.exports = {
                                         case '🛑':
                                     }
                                 })
-                        })
-                        .then(() => {
-                            if (!this.checkNatural(sent, message)){
-                                this.checkDouble();
-                                this.checkSplit();
-                                this.playerTurn(sent, message);
-                            }
-                        })
-                        .catch()
+                                .then(() => {
+                                    if (!this.checkNatural(sent, message)){
+                                        this.checkDouble();
+                                        this.checkSplit();
+                                        this.playerTurn(sent, message);
+                                    }
+                                })
+                                .catch()
+                        }).catch()
                 })
                 .catch(e => {console.log(e)});
         }
